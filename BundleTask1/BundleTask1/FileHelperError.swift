@@ -1,46 +1,67 @@
-//
-//  FileHelperError.swift
-//  BundleTask1
-//
-//  Created by Giorgi Manjavidze on 30.07.25.
-//
-
+// FileHelper.swift
 
 import Foundation
 
 enum FileHelperError: Error {
-    case writingFailed
-    case readingFailed
+    case invalidFileName
+    case writeFailed
+    case readFailed
 }
 
-final class FileManagerHelper {
-    static let shared = FileManagerHelper()
-    
+final class FileHelper {
+    static let shared = FileHelper()
+
     private init() {}
-    
-    private var fileURL: URL? {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("userText.txt")
+
+    private let fileManager = FileManager.default
+    private let fileName = "userText.txt"
+
+    private func documentsDirectory() -> URL {
+        return fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
     }
-    
+
+    private func isValidFileName(_ name: String) -> Bool {
+        let invalidChars = CharacterSet(charactersIn: "/\\:?%*|\"<>")
+        return !name.isEmpty && name.rangeOfCharacter(from: invalidChars) == nil
+    }
+
     func save(text: String) throws {
-        guard let url = fileURL else { throw FileHelperError.writingFailed }
-        do {
-            try text.write(to: url, atomically: true, encoding: .utf8)
-        } catch {
-            throw FileHelperError.writingFailed
+        guard isValidFileName(fileName) else {
+            throw FileHelperError.invalidFileName
+        }
+
+        let fileURL = documentsDirectory().appendingPathComponent(fileName)
+
+        if fileManager.fileExists(atPath: fileURL.path) {
+            // Append to existing file
+            guard let handle = try? FileHandle(forWritingTo: fileURL),
+                  let data = ("\n" + text).data(using: .utf8) else {
+                throw FileHelperError.writeFailed
+            }
+            handle.seekToEndOfFile()
+            handle.write(data)
+            handle.closeFile()
+        } else {
+            // Write new file
+            do {
+                try text.write(to: fileURL, atomically: true, encoding: .utf8)
+            } catch {
+                throw FileHelperError.writeFailed
+            }
         }
     }
-    
+
     func load() throws -> String {
-        guard let url = fileURL else { throw FileHelperError.readingFailed }
-        do {
-            return try String(contentsOf: url, encoding: .utf8)
-        } catch {
-            throw FileHelperError.readingFailed
+        guard isValidFileName(fileName) else {
+            throw FileHelperError.invalidFileName
         }
-    }
-    
-    func filePath() -> URL? {
-        return fileURL
+
+        let fileURL = documentsDirectory().appendingPathComponent(fileName)
+
+        do {
+            return try String(contentsOf: fileURL, encoding: .utf8)
+        } catch {
+            throw FileHelperError.readFailed
+        }
     }
 }

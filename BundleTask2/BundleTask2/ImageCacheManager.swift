@@ -1,10 +1,6 @@
-//
-//  ImageCacheManager.swift
-//  BundleTask2
-//
-//  Created by Giorgi Manjavidze on 30.07.25.
-//
+// ImageCacheManager.swift
 
+// ImageCacheManager.swift
 
 import UIKit
 

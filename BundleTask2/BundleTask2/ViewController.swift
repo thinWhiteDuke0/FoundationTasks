@@ -1,77 +1,90 @@
-//
-//  ViewController.swift
-//  BundleTask2
-//
-//  Created by Giorgi Manjavidze on 30.07.25.
-//
+// ViewController.swift
+
+// ViewController.swift
 
 import UIKit
 
 final class ViewController: UIViewController {
 
-    private let imageView = UIImageView()
-    private let loadButton = UIButton(type: .system)
-    private let clearButton = UIButton(type: .system)
+    private var items: [ImageItem] = []
+    private let tableView = UITableView()
 
-    private let sampleURL = URL(string: "https://images.unsplash.com/photo-1607746882042-944635dfe10e?w=800")!
-    private let imageID = "unsplash_sample"
+    
+    private let unsplashAccessKey = "N-cw9NyIUVyRlqEpZKb6J42JqnuUW4mZrcZFLUqUpco"
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .systemBackground
-        setupUI()
+        title = "Image List"
+        view.backgroundColor = .white
+
+        setupTableView()
+        setupClearButton()
+        fetchImageList()
     }
 
-    private func setupUI() {
-        imageView.translatesAutoresizingMaskIntoConstraints = false
-        imageView.contentMode = .scaleAspectFit
-        imageView.layer.cornerRadius = 12
-        imageView.clipsToBounds = true
-
-        loadButton.setTitle("Load Image", for: .normal)
-        clearButton.setTitle("Clear Cache", for: .normal)
-
-        loadButton.addTarget(self, action: #selector(loadImage), for: .touchUpInside)
-        clearButton.addTarget(self, action: #selector(clearCache), for: .touchUpInside)
-
-        let stack = UIStackView(arrangedSubviews: [loadButton, clearButton])
-        stack.axis = .horizontal
-        stack.spacing = 20
-        stack.distribution = .fillEqually
-        stack.translatesAutoresizingMaskIntoConstraints = false
-
-        view.addSubview(imageView)
-        view.addSubview(stack)
-
-        NSLayoutConstraint.activate([
-            imageView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            imageView.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -40),
-            imageView.widthAnchor.constraint(equalToConstant: 300),
-            imageView.heightAnchor.constraint(equalToConstant: 200),
-
-            stack.topAnchor.constraint(equalTo: imageView.bottomAnchor, constant: 30),
-            stack.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            stack.widthAnchor.constraint(equalToConstant: 240),
-            stack.heightAnchor.constraint(equalToConstant: 44)
-        ])
+    private func setupTableView() {
+        view.addSubview(tableView)
+        tableView.frame = view.bounds
+        tableView.register(ImageCell.self, forCellReuseIdentifier: "ImageCell")
+        tableView.dataSource = self
+        tableView.rowHeight = 100
     }
 
-    @objc private func loadImage() {
-        ImageCacheManager.shared.downloadImage(from: sampleURL, id: imageID) { [weak self] image in
-            DispatchQueue.main.async {
-                self?.imageView.image = image
-            }
-        }
+    private func setupClearButton() {
+        navigationItem.rightBarButtonItem = UIBarButtonItem(
+            title: "Clear Cache",
+            style: .plain,
+            target: self,
+            action: #selector(clearCache)
+        )
     }
 
     @objc private func clearCache() {
         ImageCacheManager.shared.clearCache()
-        imageView.image = nil
+    }
+
+    private func fetchImageList() {
+        let urlString = "https://api.unsplash.com/photos?per_page=20"
+        guard let url = URL(string: urlString) else { return }
+
+        var request = URLRequest(url: url)
+        request.setValue("Client-ID \(unsplashAccessKey)", forHTTPHeaderField: "Authorization")
+
+        URLSession.shared.dataTask(with: request) { data, _, error in
+            guard let data = data, error == nil else {
+                print("❌ Network error:", error ?? "Unknown error")
+                return
+            }
+
+            do {
+                let decoded = try JSONDecoder().decode([ImageItem].self, from: data)
+                DispatchQueue.main.async {
+                    self.items = decoded
+                    self.tableView.reloadData()
+                }
+            } catch {
+                print("❌ JSON decoding error:", error)
+            }
+        }.resume()
     }
 
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
-        print("💥 Memory warning received, clearing cache")
         ImageCacheManager.shared.clearCache()
+    }
+}
+
+extension ViewController: UITableViewDataSource {
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return items.count
+    }
+
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        guard let cell = tableView.dequeueReusableCell(withIdentifier: "ImageCell", for: indexPath) as? ImageCell else {
+            return UITableViewCell()
+        }
+
+        cell.configure(with: items[indexPath.row])
+        return cell
     }
 }

@@ -57,7 +57,7 @@ final class ViewController: UIViewController {
     @objc private func saveTapped() {
         let text = textView.text ?? ""
         do {
-            try FileManagerHelper.shared.save(text: text)
+            try FileHelper.shared.save(text: text)
             showAlert("Saved!", message: "Text saved to file.")
         } catch {
             showAlert("Error", message: "Could not save file.")
@@ -66,7 +66,7 @@ final class ViewController: UIViewController {
 
     @objc private func loadTapped() {
         do {
-            let text = try FileManagerHelper.shared.load()
+            let text = try FileHelper.shared.load()
             textView.text = text
             showAlert("Loaded!", message: "Text loaded from file.")
         } catch {
@@ -80,5 +80,3 @@ final class ViewController: UIViewController {
         present(alert, animated: true)
     }
 }
-
-
